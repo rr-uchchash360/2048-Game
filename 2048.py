@@ -1,4 +1,3 @@
-# Imports the packages
 import pygame
 import random
 
@@ -35,6 +34,11 @@ def draw():
                 text_rect = text.get_rect(center=(GRID_PADDING + j * (TILE_SIZE + GRID_PADDING) + TILE_SIZE // 2,
                                                   100 + GRID_PADDING + i * (TILE_SIZE + GRID_PADDING) + TILE_SIZE // 2))
                 window.blit(text, text_rect)
+    
+    # Display score
+    score_text = FONT.render(f"Score: {score}", True, TEXT_COLOR)
+    window.blit(score_text, (20, 20))
+    
     pygame.display.update()
 
 # Function to get tile color based on tile value
@@ -55,6 +59,7 @@ def get_tile_color(value):
     }
     return colors.get(value, (255, 255, 255))  # Default color for unknown values
 
+
 # Function to add a new tile (2 or 4) to a random empty cell
 def add_new_tile(grid):
     empty_cells = [(i, j) for i in range(GRID_SIZE) for j in range(GRID_SIZE) if grid[i][j] == 0]
@@ -62,10 +67,16 @@ def add_new_tile(grid):
         i, j = random.choice(empty_cells)
         grid[i][j] = random.choice([2, 4])
 
-# Initialize the game grid
+# Initialize the game grid and score
 grid = [[0 for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
+score = 0
 add_new_tile(grid)
 add_new_tile(grid)
+
+# Function to merge tiles and update the score
+def merge_tiles(value):
+    global score
+    score += value
 
 # Function to move tiles based on keyboard input
 def move_tiles(key):
@@ -82,8 +93,6 @@ def move_tiles(key):
     # After moving tiles, add a new tile to the grid
     add_new_tile(grid)
 
-
-
 # Function to move tiles upwards
 def move_up(grid):
     for j in range(GRID_SIZE):
@@ -99,7 +108,9 @@ def move_up(grid):
         # Merging tiles if the side-most numbers are equal
         for i in range(GRID_SIZE - 1):
             if grid[i][j] != 0 and grid[i][j] == grid[i + 1][j]:
-                grid[i][j] *= 2
+                merged_value = grid[i][j] * 2
+                merge_tiles(merged_value)  # Update the score
+                grid[i][j] = merged_value
                 grid[i + 1][j] = 0
                 k = i + 1
                 while k < GRID_SIZE - 1:
@@ -108,7 +119,6 @@ def move_up(grid):
                 grid[k][j] = 0
 
     return grid
-
 
 # Function to move tiles downwards
 def move_down(grid):
@@ -125,7 +135,9 @@ def move_down(grid):
         # Merging tiles if the side-most numbers are equal
         for i in range(GRID_SIZE - 1, 0, -1):
             if grid[i][j] != 0 and grid[i][j] == grid[i - 1][j]:
-                grid[i][j] *= 2
+                merged_value = grid[i][j] * 2
+                merge_tiles(merged_value)  # Update the score
+                grid[i][j] = merged_value
                 grid[i - 1][j] = 0
                 k = i - 1
                 while k > 0:
@@ -149,11 +161,12 @@ def move_left(grid):
                 
                 # Merge tiles with the same value
                 if k > 0 and grid[i][k - 1] == grid[i][k]:
-                    grid[i][k - 1] *= 2
+                    merged_value = grid[i][k] * 2
+                    merge_tiles(merged_value)  # Update the score
+                    grid[i][k - 1] = merged_value
                     grid[i][k] = 0
 
     return grid
-
 
 # Function to move tiles to the right
 def move_right(grid):
@@ -170,9 +183,9 @@ def move_right(grid):
         # Merging tiles if the side-most numbers are equal
         for j in range(GRID_SIZE - 1, 0, -1):
             if grid[i][j] != 0 and grid[i][j] == grid[i][j - 1]:
-                grid[i][j] *= 2
-                grid[i][j - 1] = 0
-                # Shift tiles again after merging to fill any gaps
+                merged_value = grid[i][j] * 2
+                merge_tiles(merged_value)  # Update the score
+                grid[i][j] = merged_value
                 k = j - 1
                 while k > 0:
                     grid[i][k] = grid[i][k - 1]
@@ -181,6 +194,21 @@ def move_right(grid):
 
     return grid
 
+
+# Function to check if the game is over
+def check_game_over():
+    for i in range(GRID_SIZE):
+        for j in range(GRID_SIZE):
+            if grid[i][j] == 0:
+                return False  # Game is not over as there is an empty cell
+
+            if i < GRID_SIZE - 1 and grid[i][j] == grid[i + 1][j]:
+                return False  # Game is not over as there are still mergeable tiles vertically
+
+            if j < GRID_SIZE - 1 and grid[i][j] == grid[i][j + 1]:
+                return False  # Game is not over as there are still mergeable tiles horizontally
+
+    return True  # Game is over as there are no empty cells and no mergeable tiles
 
 # Game loop
 running = True
@@ -191,6 +219,14 @@ while running:
         elif event.type == pygame.KEYDOWN:
             if event.key in [pygame.K_UP, pygame.K_DOWN, pygame.K_LEFT, pygame.K_RIGHT]:
                 move_tiles(event.key)
+                if check_game_over():
+                    # If game is over, update the display to show "Game Over"
+                    game_over_text = FONT.render("Game Over", True, TEXT_COLOR)
+                    game_over_rect = game_over_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+                    window.blit(game_over_text, game_over_rect)
+                    pygame.display.update()
+                    pygame.time.wait(5000)  # Wait for 5 seconds before quitting
+                    running = False
 
     draw()
 
